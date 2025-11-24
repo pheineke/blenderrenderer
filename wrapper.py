@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 # Configuration
-BLENDER_VERSION = "4.4"
+BLENDER_VERSION = "4.3.0"
 BLENDER_URL = f"https://download.blender.org/release/Blender{BLENDER_VERSION[:3]}/blender-{BLENDER_VERSION}-linux-x64.tar.xz"
 BLENDER_DIR = Path("blender-bin")
 CLOUDFLARED_PATH = Path("cloudflared/cloudflared-linux-amd64")
