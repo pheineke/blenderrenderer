@@ -32,9 +32,9 @@ def index():
             
             # Basic Blender command structure
             # blender -b <file> -o <output> -f 1 (for image) or -a (for animation)
-            # Note: This assumes 'blender' is in PATH. 
             
-            cmd = ['blender', '-b', filepath, '-o', output_path]
+            blender_executable = os.environ.get('BLENDER_PATH', 'blender')
+            cmd = [blender_executable, '-b', filepath, '-o', output_path]
             
             if render_type == 'animation':
                 cmd.append('-a')
