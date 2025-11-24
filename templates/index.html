@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blender Render Server</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .container { border: 1px solid #ccc; padding: 20px; border-radius: 5px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>Blender Render Server</h1>
+    <div class="container">
+        <form method="post" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="file">Upload .blend file:</label>
+                <input type="file" name="file" id="file" accept=".blend" required>
+            </div>
+            <div class="form-group">
+                <label>Render Type:</label>
+                <div>
+                    <input type="radio" id="image" name="render_type" value="image" checked>
+                    <label for="image" style="display:inline;">Image (Frame 1)</label>
+                </div>
+                <div>
+                    <input type="radio" id="animation" name="render_type" value="animation">
+                    <label for="animation" style="display:inline;">Animation</label>
+                </div>
+            </div>
+            <button type="submit">Upload and Render</button>
+        </form>
+    </div>
+</body>
+</html>
