@@ -1,6 +1,10 @@
 import os
 import subprocess
-from flask import Flask, render_template, request, send_file, redirect, url_for
+import threading
+import uuid
+import re
+import time
+from flask import Flask, render_template, request, send_file, redirect, url_for, jsonify
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
@@ -12,14 +16,82 @@ app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB limit
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['RENDER_FOLDER'], exist_ok=True)
 
+# Global dictionary to store job status
+JOBS = {}
+
+def render_worker(job_id, cmd, output_filename):
+    """Background worker to run Blender and track progress."""
+    JOBS[job_id]['status'] = 'rendering'
+    JOBS[job_id]['progress'] = 0
+    
+    try:
+        # Start subprocess with stdout piped
+        process = subprocess.Popen(
+            cmd, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.STDOUT, 
+            text=True,
+            bufsize=1,
+            universal_newlines=True
+        )
+        
+        # Regex to match "Fra:123" or similar progress indicators
+        # Blender output example: "Fra:1 Mem:20.0M (Peak 20.0M) | Time:00:00.00 | Mem:0.00M, Peak:0.00M | Scene, ViewLayer | Rendered 0/10 Tiles"
+        # We'll look for "Fra:<number>"
+        
+        for line in process.stdout:
+            match = re.search(r'Fra:(\d+)', line)
+            if match:
+                frame = int(match.group(1))
+                # For a single image (frame 1), finding "Fra:1" usually means it's working on it.
+                # For animation, we'd need to know total frames to calculate percentage.
+                # For MVP, let's just increment progress or set it to a "busy" state.
+                # If we assume 100 frames for animation default, we can calc. 
+                # But for single image, it goes 0 -> 1 -> done.
+                
+                # Let's just store the frame number for now, or fake a percentage if we don't know total.
+                # If it's an image render (-f 1), it's mostly 0% then 100%.
+                
+                JOBS[job_id]['current_frame'] = frame
+                # Simple fake progress for now: 50% if we see a frame, until done.
+                JOBS[job_id]['progress'] = 50 
+            
+            # Also check for "Saved:" to know a file is done
+            if "Saved:" in line:
+                JOBS[job_id]['progress'] = 90
+
+        process.wait()
+        
+        if process.returncode == 0:
+            JOBS[job_id]['status'] = 'complete'
+            JOBS[job_id]['progress'] = 100
+            
+            # Find the actual output file
+            # Blender appends frame numbers, e.g. output0001.png
+            # We search for files starting with the base output name
+            rendered_files = [f for f in os.listdir(app.config['RENDER_FOLDER']) if f.startswith(output_filename)]
+            if rendered_files:
+                # Pick the newest one or just the first one
+                JOBS[job_id]['result_file'] = rendered_files[0]
+            else:
+                JOBS[job_id]['status'] = 'error'
+                JOBS[job_id]['error'] = 'Output file not found'
+        else:
+            JOBS[job_id]['status'] = 'error'
+            JOBS[job_id]['error'] = f'Blender exited with code {process.returncode}'
+            
+    except Exception as e:
+        JOBS[job_id]['status'] = 'error'
+        JOBS[job_id]['error'] = str(e)
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
         if 'file' not in request.files:
-            return 'No file part'
+            return jsonify({'error': 'No file part'}), 400
         file = request.files['file']
         if file.filename == '':
-            return 'No selected file'
+            return jsonify({'error': 'No selected file'}), 400
         
         if file and file.filename.endswith('.blend'):
             filename = secure_filename(file.filename)
@@ -30,48 +102,36 @@ def index():
             output_filename = f"{os.path.splitext(filename)[0]}_render"
             output_path = os.path.join(app.config['RENDER_FOLDER'], output_filename)
             
-            # Basic Blender command structure
-            # blender -b <file> -o <output> -f 1 (for image) or -a (for animation)
-            
             blender_executable = os.environ.get('BLENDER_PATH', 'blender')
             cmd = [blender_executable, '-b', filepath, '-o', output_path]
             
             if render_type == 'animation':
                 cmd.append('-a')
-                # For animation, blender adds frame numbers. We might need to zip or handle multiple files.
-                # For simplicity in this MVP, let's assume it outputs a video file if configured in the blend file,
-                # or we might just serve the first frame if it's a sequence.
-                # A safer bet for a generic "render animation" is that the user has set up the output format in the blend file.
-                # However, -o overrides the output path.
-                # Let's stick to image for the MVP default or handle single frame render for 'image' type.
             else:
-                # Render frame 1
                 cmd.extend(['-f', '1'])
-                # Blender appends frame number to output, e.g., output_render0001.png
-                # We need to find the generated file.
             
-            try:
-                subprocess.run(cmd, check=True)
-            except FileNotFoundError:
-                return "Blender executable not found. Please ensure Blender is installed and in your PATH."
-            except subprocess.CalledProcessError:
-                return "Error during rendering."
-
-            # Find the rendered file
-            # This is tricky because we don't know the exact extension or if it added frame numbers.
-            # We'll search the render folder for the newest file matching our pattern.
+            # Create Job
+            job_id = str(uuid.uuid4())
+            JOBS[job_id] = {
+                'status': 'queued',
+                'progress': 0,
+                'type': render_type
+            }
             
-            # For now, let's redirect to a download page or just try to download the likely file.
-            # Let's list files in render folder and pick the one starting with output_filename
+            # Start worker thread
+            thread = threading.Thread(target=render_worker, args=(job_id, cmd, output_filename))
+            thread.start()
             
-            rendered_files = [f for f in os.listdir(app.config['RENDER_FOLDER']) if f.startswith(output_filename)]
-            if rendered_files:
-                # Return the first match (likely the only one for image)
-                return redirect(url_for('download_file', filename=rendered_files[0]))
-            else:
-                return "Rendered file not found."
+            return jsonify({'job_id': job_id})
 
     return render_template('index.html')
+
+@app.route('/status/<job_id>')
+def job_status(job_id):
+    job = JOBS.get(job_id)
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+    return jsonify(job)
 
 @app.route('/download/<filename>')
 def download_file(filename):
