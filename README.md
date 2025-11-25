@@ -44,6 +44,16 @@ A simple Flask-based web server that allows users to upload `.blend` files and r
 4.  **Access**:
     Open the printed Cloudflared URL or `http://localhost:5000` in your browser.
 
+## Persistent URL (Optional)
+
+To use a persistent Cloudflare Tunnel URL:
+1.  Create a tunnel in the Cloudflare Dashboard.
+2.  Get the tunnel token.
+3.  Either:
+    - Set the `TUNNEL_TOKEN` environment variable.
+    - OR create a file named `tunnel_token` in the project root containing the token.
+4.  Run `wrapper.py` as usual. It will detect the token and start the named tunnel.
+
 ## Code Explanation
 
 ### `app.py`

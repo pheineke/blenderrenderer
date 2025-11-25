@@ -63,20 +63,32 @@ def start_cloudflared():
     # Make sure it's executable
     os.chmod(CLOUDFLARED_PATH, 0o755)
     
-    # Start tunnel for port 5000
-    # Using 'tunnel --url' for quick ad-hoc tunnel, or user might have a config.
-    # Assuming ad-hoc for now as per "handles cloudflared tunnel" request without config details.
-    cmd = [str(CLOUDFLARED_PATH), "tunnel", "--url", "http://localhost:5000"]
+    # Start tunnel
+    # Check for token in env or file
+    token = os.environ.get("TUNNEL_TOKEN")
+    if not token:
+        token_file = Path("tunnel_token")
+        if token_file.exists():
+            token = token_file.read_text().strip()
+            print("Loaded tunnel token from file.")
+
+    if token:
+        print("Starting Cloudflared tunnel with token...")
+        cmd = [str(CLOUDFLARED_PATH), "tunnel", "run", "--token", token]
+    else:
+        print("Starting ad-hoc Cloudflared tunnel...")
+        cmd = [str(CLOUDFLARED_PATH), "tunnel", "--url", "http://localhost:5000"]
     
     # Run in background
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     
-    # Start a thread to monitor output for the URL
+    # Start a thread to monitor output for the URL (only needed for ad-hoc, but harmless for token)
     import threading
     def monitor_output(p):
         for line in p.stderr:
             if ".trycloudflare.com" in line:
                 print(f"\n[Cloudflared] Tunnel URL: {line.strip()}\n")
+            # Also print other relevant info if needed, or just let it be
     
     t = threading.Thread(target=monitor_output, args=(proc,), daemon=True)
     t.start()
