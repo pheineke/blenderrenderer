@@ -39,27 +39,29 @@
 
         .container {
             background-color: var(--container-bg);
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
             width: 100%;
-            max-width: 600px;
+            max-width: 500px;
             transition: background-color 0.3s;
         }
 
         h1 {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
+            font-size: 2rem;
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
 
         label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             font-weight: 600;
+            font-size: 0.95rem;
         }
 
         input[type="file"] {
@@ -69,6 +71,8 @@
             border-radius: 4px;
             background-color: var(--bg-color);
             color: var(--text-color);
+            box-sizing: border-box;
+            /* Ensure padding doesn't overflow width */
         }
 
         .radio-group {
@@ -87,7 +91,6 @@
             padding: 12px;
             background-color: var(--primary-color);
             color: white;
-            /* Keep white for contrast on blue, or adjust for dark mode primary */
             border: none;
             border-radius: 4px;
             cursor: pointer;
@@ -98,7 +101,6 @@
 
         body.dark-mode button.submit-btn {
             color: #121212;
-            /* Dark text on light purple */
         }
 
         button.submit-btn:hover {
@@ -135,7 +137,6 @@
             background-color: #218838;
         }
 
-        /* Toggle Switch */
         .theme-toggle {
             position: absolute;
             top: 20px;
@@ -181,7 +182,6 @@
         {% if filename %}
         <div class="preview-section">
             <h2>Render Preview</h2>
-            <!-- Simple check for extension to decide tag, defaulting to img -->
             {% if filename.endswith('.mp4') or filename.endswith('.mkv') or filename.endswith('.avi') %}
             <video controls class="preview-media">
                 <source src="{{ url_for('download_file', filename=filename) }}" type="video/mp4">
@@ -200,7 +200,6 @@
         const toggleBtn = document.getElementById('themeToggle');
         const body = document.body;
 
-        // Check local storage
         if (localStorage.getItem('theme') === 'dark') {
             body.classList.add('dark-mode');
         }
