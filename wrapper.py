@@ -70,6 +70,17 @@ def start_cloudflared():
     
     # Run in background
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    
+    # Start a thread to monitor output for the URL
+    import threading
+    def monitor_output(p):
+        for line in p.stderr:
+            if ".trycloudflare.com" in line:
+                print(f"\n[Cloudflared] Tunnel URL: {line.strip()}\n")
+    
+    t = threading.Thread(target=monitor_output, args=(proc,), daemon=True)
+    t.start()
+
     return proc
 
 def main():
