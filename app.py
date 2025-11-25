@@ -67,7 +67,7 @@ def index():
             rendered_files = [f for f in os.listdir(app.config['RENDER_FOLDER']) if f.startswith(output_filename)]
             if rendered_files:
                 # Return the first match (likely the only one for image)
-                return redirect(url_for('download_file', filename=rendered_files[0]))
+                return render_template('index.html', filename=rendered_files[0])
             else:
                 return "Rendered file not found."
 

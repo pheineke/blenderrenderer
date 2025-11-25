@@ -1,39 +1,219 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Blender Render Server</title>
     <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-        .container { border: 1px solid #ccc; padding: 20px; border-radius: 5px; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; }
-        button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
-        button:hover { background-color: #0056b3; }
+        :root {
+            --bg-color: #f4f4f9;
+            --container-bg: #ffffff;
+            --text-color: #333333;
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --border-color: #cccccc;
+        }
+
+        body.dark-mode {
+            --bg-color: #121212;
+            --container-bg: #1e1e1e;
+            --text-color: #e0e0e0;
+            --primary-color: #bb86fc;
+            --primary-hover: #9965f4;
+            --border-color: #333333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background-color: var(--container-bg);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+            transition: background-color 0.3s;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 20px;
+        }
+
+        .radio-group div {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        button.submit-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary-color);
+            color: white;
+            /* Keep white for contrast on blue, or adjust for dark mode primary */
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        body.dark-mode button.submit-btn {
+            color: #121212;
+            /* Dark text on light purple */
+        }
+
+        button.submit-btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .preview-section {
+            margin-top: 30px;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+        }
+
+        .preview-media {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border-color);
+        }
+
+        .download-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        .download-btn:hover {
+            background-color: #218838;
+        }
+
+        /* Toggle Switch */
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 24px;
+            color: var(--text-color);
+        }
     </style>
 </head>
+
 <body>
-    <h1>Blender Render Server</h1>
+    <button class="theme-toggle" id="themeToggle" title="Toggle Dark Mode">🌓</button>
+
     <div class="container">
+        <h1>Blender Render Server</h1>
+
         <form method="post" enctype="multipart/form-data">
             <div class="form-group">
                 <label for="file">Upload .blend file:</label>
                 <input type="file" name="file" id="file" accept=".blend" required>
             </div>
+
             <div class="form-group">
                 <label>Render Type:</label>
-                <div>
-                    <input type="radio" id="image" name="render_type" value="image" checked>
-                    <label for="image" style="display:inline;">Image (Frame 1)</label>
-                </div>
-                <div>
-                    <input type="radio" id="animation" name="render_type" value="animation">
-                    <label for="animation" style="display:inline;">Animation</label>
+                <div class="radio-group">
+                    <div>
+                        <input type="radio" id="image" name="render_type" value="image" checked>
+                        <label for="image">Image (Frame 1)</label>
+                    </div>
+                    <div>
+                        <input type="radio" id="animation" name="render_type" value="animation">
+                        <label for="animation">Animation</label>
+                    </div>
                 </div>
             </div>
-            <button type="submit">Upload and Render</button>
+
+            <button type="submit" class="submit-btn">Upload and Render</button>
         </form>
+
+        {% if filename %}
+        <div class="preview-section">
+            <h2>Render Preview</h2>
+            <!-- Simple check for extension to decide tag, defaulting to img -->
+            {% if filename.endswith('.mp4') or filename.endswith('.mkv') or filename.endswith('.avi') %}
+            <video controls class="preview-media">
+                <source src="{{ url_for('download_file', filename=filename) }}" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            {% else %}
+            <img src="{{ url_for('download_file', filename=filename) }}" alt="Rendered Preview" class="preview-media">
+            {% endif %}
+            <br>
+            <a href="{{ url_for('download_file', filename=filename) }}" class="download-btn">Download Result</a>
+        </div>
+        {% endif %}
     </div>
+
+    <script>
+        const toggleBtn = document.getElementById('themeToggle');
+        const body = document.body;
+
+        // Check local storage
+        if (localStorage.getItem('theme') === 'dark') {
+            body.classList.add('dark-mode');
+        }
+
+        toggleBtn.addEventListener('click', () => {
+            body.classList.toggle('dark-mode');
+            if (body.classList.contains('dark-mode')) {
+                localStorage.setItem('theme', 'dark');
+            } else {
+                localStorage.setItem('theme', 'light');
+            }
+        });
+    </script>
 </body>
+
 </html>
